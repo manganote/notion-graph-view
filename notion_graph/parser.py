@@ -355,32 +355,47 @@ class Parser:
                 self._add_node(page)
                 self._add_edge(parent_page_or_database_id, page['id'])
 
-    def _add_node(self, block: any, **kwargs):
+   def _add_node(self, block: any, **kwargs):
         """
         :param block: any type of block, page, database
         :kwargs url: page or database url
         """
         url = block.get('url', '')
         title = block.get('title', None)
+
         if not title or not isinstance(title, str):
-            if block['object'] == 'database':
-                title = block['title'][0]['plain_text']
-            elif block['object'] == 'page':
-                if block['parent']['type'] != "database_id":
-                    title = block['properties']['title']['title'][0]['plain_text']
+            if block.get('object') == 'database':
+                title_list = block.get('title', [])
+                if title_list and isinstance(title_list, list) and 'plain_text' in title_list[0]:
+                    title = title_list[0]['plain_text']
                 else:
-                    title = block['properties']['Name']['title'][0]['plain_text']
+                    title = 'Untitled'
+            elif block.get('object') == 'page':
+                properties = block.get('properties', {})
+                if block.get('parent', {}).get('type') != "database_id":
+                    title_list = properties.get('title', {}).get('title', [])
+                    if title_list and isinstance(title_list, list) and 'plain_text' in title_list[0]:
+                        title = title_list[0]['plain_text']
+                    else:
+                        title = 'Untitled'
+                else:
+                    title_list = properties.get('Name', {}).get('title', [])
+                    if title_list and isinstance(title_list, list) and 'plain_text' in title_list[0]:
+                        title = title_list[0]['plain_text']
+                    else:
+                        title = 'Untitled'
             else:
-                title = block[block['type']]['title']
+                title = block.get(block.get('type'), {}).get('title', 'Untitled')
 
         print("+node:", title)
         self._graph.add_node(
-            block['id'],
+            block.get('id', 'unknown_id'),
             label=title,
             title=f'<a href="{url}">open page</a>',
             color=COLOR_NODE,
             size=10,
-            borderWidth=0)
+            borderWidth=0
+        )
 
     def _add_edge(self, lnode_id: str, rnode_id: str):
         if is_same_block_id(lnode_id, rnode_id):
